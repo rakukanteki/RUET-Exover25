@@ -29,6 +29,9 @@ setup(
             'first_node = space_teams_python.first_node:main',
             'cam_record = space_teams_python.cam_record:main',
             'cam_edge_node = space_teams_python.cam_edge_node:main',
+            'best_run = space_teams_python.best_run:main',
+            'test_client2 = space_teams_python.test_client2:main',
+            'test_client3 = space_teams_python.test_client3:main',
         ],
     },
 )

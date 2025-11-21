@@ -31,15 +31,16 @@ while True:
 
     # Create ROI mask
     mask = np.zeros((h, w), dtype=np.uint8)
-    mask[ROI_Y1:ROI_Y2, ROI_X1:ROI_X2] = 255   # <-- only within narrowed ROI
+    mask[ROI_Y1:ROI_Y2, ROI_X1:ROI_X2] = 255   # only within narrowed ROI
 
     # Preprocessing
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     masked_gray = cv2.bitwise_and(gray, gray, mask=mask)
+
     # Increase contrast
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
     enhanced = clahe.apply(masked_gray)
-    
+
     blurred = cv2.GaussianBlur(masked_gray, (7, 7), 0)
     edges = cv2.Canny(blurred, 20, 150)
 
@@ -61,9 +62,9 @@ while True:
         cy = int(M["m01"] / M["m00"])
 
         # Distance estimation
-        if area > 2000 or cy > int(ROI_Y2 - (ROI_Y2 - ROI_Y1)*0.25):
+        if area > 2000 or cy > int(ROI_Y2 - (ROI_Y2 - ROI_Y1) * 0.25):
             distance = "CLOSE"
-        elif area > 700 or cy > int(ROI_Y1 + (ROI_Y2 - ROI_Y1)*0.35):
+        elif area > 700 or cy > int(ROI_Y1 + (ROI_Y2 - ROI_Y1) * 0.35):
             distance = "MID"
         else:
             distance = "FAR"
@@ -79,25 +80,40 @@ while True:
         cv2.circle(debug_frame, (cx, cy), 4, (0, 0, 255), -1)
         cv2.putText(debug_frame, distance, (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
 
-    # Zone classification (for MID rocks only)
-    one_third = (ROI_X2 - ROI_X1) // 3
-    two_third = 2 * (ROI_X2 - ROI_X1) // 3
+    # ----------------------
+    # Zone classification
+    # ----------------------
+    roi_width = ROI_X2 - ROI_X1
+
+    left_end = int(ROI_X1 + roi_width * 0.25)     # 25%
+    center_end = int(ROI_X1 + roi_width * 0.75)   # 75%
+
+    # Draw zone boundary lines for debugging
+    cv2.line(debug_frame, (left_end, ROI_Y1), (left_end, ROI_Y2), (255, 0, 0), 2)
+    cv2.line(debug_frame, (center_end, ROI_Y1), (center_end, ROI_Y2), (255, 0, 0), 2)
+
     for rock in rock_data:
         cx, cy = rock["centroid"]
-        relative_cx = cx - ROI_X1
-        if relative_cx < one_third:
+
+        if cx < left_end:
             zone = "LEFT"
-        elif relative_cx < two_third:
+        elif cx < center_end:
             zone = "CENTER"
         else:
             zone = "RIGHT"
-        rock["zone"] = zone
-        cv2.putText(debug_frame, zone, (cx - 20, cy - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 2)
 
-    # Display
+        rock["zone"] = zone
+
+        cv2.putText(debug_frame, zone, (cx - 20, cy - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 2)
+
+    # ----------------------
+    # Display all frames
+    # ----------------------
     edges_bgr = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
     combined = np.hstack((frame_with_roi, edges_bgr, debug_frame))
-    cv2.imshow("Original | Edges | MID Rocks Only", combined)
+
+    cv2.imshow("Original | Edges | MID Rocks with Zones", combined)
 
     if cv2.waitKey(30) & 0xFF == ord('q'):
         break
